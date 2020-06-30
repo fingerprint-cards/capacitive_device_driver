@@ -1,0 +1,269 @@
+&soc {
+	clock_rpm: qcom,rpmcc@fc401880 {
+		compatible = "qcom,rpmcc-8994";
+		reg = <0xfc401880 0x4>;
+		reg-names = "cc_base";
+		#clock-cells = <1>;
+	};
+
+	clock_gcc: qcom,gcc@fc400000 {
+		compatible = "qcom,gcc-8994";
+		reg = <0xfc400000 0x2000>;
+		reg-names = "cc_base";
+		vdd_dig-supply = <&pm8994_s1_corner>;
+		clock-names = "xo", "xo_a_clk";
+		clocks = <&clock_rpm clk_cxo_clk_src>,
+		         <&clock_rpm clk_cxo_clk_src_ao>;
+		#clock-cells = <1>;
+	};
+
+	/* SPI : BLSP1 */
+	spi@f9923000 {
+		/delete-property/ qcom,use-pinctrl;
+		pinctrl-0 = <>;
+		pinctrl-1 = <>;
+		qcom,shared;
+		status = "ok";
+
+		fpc1020@1 {
+			status = "ok";
+			reg = <1>;
+			compatible = "fpc,fpc1020";
+			input-device-name = "fpc1020";
+			interrupt-parent = <&msm_gpio>;
+			interrupts = <90 0x0>;
+			fpc,gpio_cs0    = <&msm_gpio 2 0>;
+			fpc,gpio_cs1    = <&msm_gpio 8 0>;
+			fpc,gpio_rst    = <&msm_gpio 89 0>;
+			fpc,gpio_irq    = <&msm_gpio 90 0>;
+			vcc_spi-supply  = <&pm8994_s4>;
+			vdd_ana-supply  = <&pm8994_l32>;
+			vdd_io-supply   = <&pm8994_l32>;
+			fpc,use_fpc2050 = <1>;
+			fpc,enable-on-boot;
+			/delete-property/ fpc,enable-wakeup;
+			/* EV_MSC, MSC_SCAN */
+			fpc,event-type = <4>;
+			fpc,event-code = <4>;
+
+			spi-max-frequency = <4800000>;
+			spi-qup-id = <1>;
+			clock-names = "iface_clk", "core_clk";
+			clocks = <&clock_gcc clk_gcc_blsp1_ahb_clk>,
+				<&clock_gcc clk_gcc_blsp1_qup1_spi_apps_clk>;
+
+			pinctrl-names = "fpc1020_spi_active",
+					"fpc1020_reset_reset",
+					"fpc1020_reset_active",
+					"fpc1020_cs_low",
+					"fpc1020_cs_high",
+					"fpc1020_cs_active",
+					"fpc1020_irq_active";
+
+			pinctrl-0 = <&fpc_spi_active>;
+			pinctrl-1 = <&fpc_reset_reset>;
+			pinctrl-2 = <&fpc_reset_active>;
+			pinctrl-3 = <&fpc_cs_low>;
+			pinctrl-4 = <&fpc_cs_high>;
+			pinctrl-5 = <&fpc_cs_active>;
+			pinctrl-6 = <&fpc_irq_active>;
+		};
+	};
+};
+
+&pm8994_l32 {
+	regulator-min-microvolt = <1800000>;
+	regulator-max-microvolt = <1800000>;
+	qcom,init-enable = <0>;
+	qcom,init-voltage = <1800000>;
+	qcom,init-ldo-mode = <1>;
+	qcom,init-pin-ctrl-enable = <0>;
+	qcom,init-pin-ctrl-mode = <0>;
+	status = "ok";
+};
+
+&pm8994_s4 {
+	status = "ok";
+};
+
+&tlmm_pinmux {
+	/* GPIO_0: MHL_SPI_MOSI */
+	msm_gpio_0 {
+		qcom,pins = <&gp 0>;
+		qcom,num-grp-pins = <1>;
+		label = "msm_gpio_0";
+		qcom,pin-func = <1>;
+		msm_gpio_0_act: active {
+			drive-strength = <2>;
+			bias-disable;
+		};
+		msm_gpio_0_sus: suspend {
+			drive-strength = <2>;
+			bias-disable;
+		};
+		msm_gpio_0_def: default {
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	/* GPIO_1: SPI_MISO */
+	msm_gpio_1 {
+		qcom,pins = <&gp 1>;
+		qcom,num-grp-pins = <1>;
+		label = "msm_gpio_1";
+		qcom,pin-func = <1>;
+		msm_gpio_1_act: active {
+			drive-strength = <2>;
+			bias-disable;
+		};
+		msm_gpio_1_sus: suspend {
+			drive-strength = <2>;
+			bias-disable;
+		};
+		msm_gpio_1_def: default {
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	/* GPIO_2: SPI_CS_N */
+	msm_gpio_2 {
+		qcom,pins = <&gp 2>;
+		qcom,num-grp-pins = <1>;
+		label = "msm_gpio_2";
+		qcom,pin-func = <1>;
+		msm_gpio_2_def: default {
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	/* GPIO_3: SPI_CLK */
+	msm_gpio_3 {
+		qcom,pins = <&gp 3>;
+		qcom,num-grp-pins = <1>;
+		label = "msm_gpio_3";
+		qcom,pin-func = <1>;
+		msm_gpio_3_act: active {
+			drive-strength = <2>;
+			bias-disable;
+		};
+		msm_gpio_3_sus: suspend {
+			drive-strength = <2>;
+			bias-disable;
+		};
+		msm_gpio_3_def: default {
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	/* GPIO_8: SPI_CS_N for old HW */
+	msm_gpio_8 {
+		qcom,pins = <&gp 8>;
+		qcom,num-grp-pins = <1>;
+		label = "msm_gpio_8";
+		qcom,pin-func = <0>;
+		msm_gpio_8_def: default {
+			drive-strength = <2>;
+			bias-disable;
+			output-low;
+		};
+	};
+
+	/* GPIO_89: SPI_RST */
+	msm_gpio_89 {
+		qcom,pins = <&gp 89>;
+		qcom,num-grp-pins = <1>;
+		label = "msm_gpio_89";
+		qcom,pin-func = <0>;
+		msm_gpio_89_def: default {
+			drive-strength = <2>;
+			bias-disable;
+			output-low;
+		};
+	};
+
+	/* GPIO_90: SPI_IRQ */
+	msm_gpio_90 {
+		qcom,pins = <&gp 90>;
+		qcom,num-grp-pins = <1>;
+		label = "msm_gpio_90";
+		qcom,pin-func = <0>;
+		msm_gpio_90_def: default {
+			drive-strength = <2>;
+			bias-disable;
+			output-low;
+		};
+	};
+
+	fpc_spi_active {
+		qcom,pins = <&gp 0>, <&gp 1>, <&gp 3>;
+		qcom,num-grp-pins = <3>;
+		qcom,pin-func = <1>;
+		label = "fpc_spi_active";
+		fpc_spi_active: active {
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	fpc_cs_manual {
+		qcom,pins = <&gp 2>, <&gp 8>;
+		qcom,num-grp-pins = <2>;
+		label = "fpc_cs_manual";
+		qcom,pin-func = <0>;
+		fpc_cs_low: output-low {
+			drive-strength = <2>;
+			bias-disable;
+			output-low;
+		};
+		fpc_cs_high: output-high {
+			drive-strength = <2>;
+			bias-disable;
+			output-high;
+		};
+	};
+
+	fpc_cs_active {
+		qcom,pins = <&gp 2>, <&gp 8>;
+		qcom,num-grp-pins = <2>;
+		label = "fpc_cs_active";
+		qcom,pin-func = <1>;
+		fpc_cs_active: spi-active {
+			drive-strength = <2>;
+			bias-disable;
+		};
+	};
+
+	fpc_reset {
+		qcom,pins = <&gp 89>;
+		qcom,num-grp-pins = <1>;
+		qcom,pin-func = <0>;
+		label = "fpc_reset";
+		fpc_reset_reset: reset {
+			drive-strength = <2>;
+			bias-disable;
+			output-low;
+		};
+		fpc_reset_active: active {
+			drive-strength = <2>;
+			bias-disable;
+			output-high;
+		};
+	};
+
+	fpc_irq_active {
+		qcom,pins = <&gp 90>;
+		qcom,num-grp-pins = <1>;
+		qcom,pin-func = <0>;
+		label = "fpc_irq_active";
+		fpc_irq_active: active {
+			drive-strength = <2>;
+			bias-disable;
+			input-enable;
+		};
+	};
+};
+

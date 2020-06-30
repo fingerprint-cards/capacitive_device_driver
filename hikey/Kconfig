@@ -1,0 +1,11 @@
+#
+# FPC sensors
+#
+
+config INPUT_FPC1020_IRQ
+	tristate "FPC1020 fingerprint sensor IRQ support"
+	depends on SPI=y && SPI_QUP=y
+	help
+		If you say yes here you get IRQ support for the FPC1020 family
+		of fingerprint sensors from Fingerprint Cards (FPC).
+

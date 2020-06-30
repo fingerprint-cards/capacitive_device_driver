@@ -1,0 +1,131 @@
+From c1a9d94898c4bf6e55ed21123a87a996486c15db Mon Sep 17 00:00:00 2001
+From: shaoxin li <shaoxin.li@fingerprints.com>
+Date: Thu, 9 Apr 2020 20:23:54 +0800
+Subject: [PATCH] Change wakelock api to support kernel 4.9
+
+Kernel 4.9 use different wakelock api with before,
+if make fingerprint work in kernel 4.9, should run
+"git apply xxx.patch".
+
+no jira
+
+Change-Id: Id3330d80fc680862993475d36e5d1008d10a4cf4
+---
+ samsung/platform_driver/fpc1020_platform_tee.c | 24 +++++++++++-------------
+ 1 file changed, 11 insertions(+), 13 deletions(-)
+
+diff --git a/samsung/platform_driver/fpc1020_platform_tee.c b/samsung/platform_driver/fpc1020_platform_tee.c
+index 6b5e0dc..2b5171e 100644
+--- a/samsung/platform_driver/fpc1020_platform_tee.c
++++ b/samsung/platform_driver/fpc1020_platform_tee.c
+@@ -64,7 +64,7 @@
+ #include <linux/fb.h>
+ #include <linux/pm_qos.h>
+ #include <linux/cpufreq.h>
+-#include <linux/wakelock.h>
++#include <linux/pinctrl/consumer.h>
+ 
+ #include <linux/types.h>
+ #define FPC_TTW_HOLD_TIME 1000
+@@ -126,7 +126,7 @@ struct fpc1020_data {
+ 	struct pinctrl_state *pinctrl_state[ARRAY_SIZE(pctl_names)];
+ 	struct regulator *vreg[ARRAY_SIZE(vreg_conf)];
+ 
+-	struct wake_lock ttw_wl;
++	struct wakeup_source ttw_wl;
+ 	int irq_gpio;
+ 	int rst_gpio;
+ 
+@@ -274,8 +274,8 @@ found:
+ 	vreg = fpc1020->vreg[i];
+ 	if (enable) {
+ 		if (!vreg) {
+-			vreg = regulator_get(dev, name);
+-			if (IS_ERR(vreg)) {
++			vreg = devm_regulator_get(dev, name);
++			if (IS_ERR_OR_NULL(vreg)) {
+ 				dev_err(dev, "Unable to get %s\n", name);
+ 				return PTR_ERR(vreg);
+ 			}
+@@ -290,7 +290,7 @@ found:
+ 					name, rc);
+ 		}
+ 
+-		rc = regulator_set_optimum_mode(vreg, vreg_conf[i].ua_load);
++		rc = regulator_set_load(vreg, vreg_conf[i].ua_load);
+ 		if (rc < 0)
+ 			dev_err(dev, "Unable to set current on %s, %d\n",
+ 					name, rc);
+@@ -298,7 +298,6 @@ found:
+ 		rc = regulator_enable(vreg);
+ 		if (rc) {
+ 			dev_err(dev, "error enabling %s: %d\n", name, rc);
+-			regulator_put(vreg);
+ 			vreg = NULL;
+ 		}
+ 		fpc1020->vreg[i] = vreg;
+@@ -308,7 +307,6 @@ found:
+ 				regulator_disable(vreg);
+ 				dev_dbg(dev, "disabled %s\n", name);
+ 			}
+-			regulator_put(vreg);
+ 			fpc1020->vreg[i] = NULL;
+ 		}
+ 		rc = 0;
+@@ -599,7 +597,7 @@ static ssize_t handle_wakelock_cmd(struct device *dev,
+ 		min(count, strlen(RELEASE_WAKELOCK_W_V)))) {
+ 		if (fpc1020->nbr_irqs_received_counter_start ==
+ 				fpc1020->nbr_irqs_received) {
+-			wake_unlock(&fpc1020->ttw_wl);
++			__pm_relax(&fpc1020->ttw_wl);
+ 		} else {
+ 			dev_dbg(dev, "Ignore releasing of wakelock %d != %d",
+ 				fpc1020->nbr_irqs_received_counter_start,
+@@ -607,7 +605,7 @@ static ssize_t handle_wakelock_cmd(struct device *dev,
+ 		}
+ 	} else if (!strncmp(buf, RELEASE_WAKELOCK, min(count,
+ 				strlen(RELEASE_WAKELOCK)))) {
+-		wake_unlock(&fpc1020->ttw_wl);
++		__pm_relax(&fpc1020->ttw_wl);
+ 	} else if (!strncmp(buf, START_IRQS_RECEIVED_CNT,
+ 			min(count, strlen(START_IRQS_RECEIVED_CNT)))) {
+ 		fpc1020->nbr_irqs_received_counter_start =
+@@ -774,7 +772,7 @@ static irqreturn_t fpc1020_irq_handler(int irq, void *handle)
+ 	mutex_lock(&fpc1020->lock);
+ 	if (atomic_read(&fpc1020->wakeup_enabled)) {
+ 		fpc1020->nbr_irqs_received++;
+-		wake_lock_timeout(&fpc1020->ttw_wl,
++		__pm_wakeup_event(&fpc1020->ttw_wl,
+ 					msecs_to_jiffies(FPC_TTW_HOLD_TIME));
+ 	}
+ 	mutex_unlock(&fpc1020->lock);
+@@ -900,7 +898,7 @@ static int fpc1020_probe(struct platform_device *pdev)
+ 	/* Request that the interrupt should be wakeable */
+ 	enable_irq_wake(gpio_to_irq(fpc1020->irq_gpio));
+ 
+-	wake_lock_init(&fpc1020->ttw_wl, WAKE_LOCK_SUSPEND, "fpc_ttw_wl");
++	wakeup_source_init(&fpc1020->ttw_wl, "fpc_ttw_wl");
+ 
+ 	rc = sysfs_create_group(&dev->kobj, &attribute_group);
+ 	if (rc) {
+@@ -931,7 +929,7 @@ static int fpc1020_probe(struct platform_device *pdev)
+ #endif
+ #else
+ 	mutex_init(&fpc1020->lock);
+-	wake_lock_init(&fpc1020->ttw_wl, WAKE_LOCK_SUSPEND, "fpc_ttw_wl");
++	wakeup_source_init(&fpc1020->ttw_wl, "fpc_ttw_wl");
+ 
+ 	rc = sysfs_create_group(&dev->kobj, &attribute_group);
+ 	if (rc) {
+@@ -957,7 +955,7 @@ static int fpc1020_remove(struct platform_device *pdev)
+ 
+ 	sysfs_remove_group(&pdev->dev.kobj, &attribute_group);
+ 	mutex_destroy(&fpc1020->lock);
+-	wake_lock_destroy(&fpc1020->ttw_wl);
++	wakeup_source_trash(&fpc1020->ttw_wl);
+ 	(void)vreg_setup(fpc1020, "vdd_ana", false);
+ 	(void)vreg_setup(fpc1020, "vdd_io", false);
+ 	(void)vreg_setup(fpc1020, "vcc_spi", false);
+-- 
+2.7.4
+

@@ -1,0 +1,33 @@
+diff --git a/arch/arm64/boot/dts/hisilicon/hi3660-hikey960.dts b/arch/arm64/boot/dts/hisilicon/hi3660-hikey960.dts
+index 05a88f3..f6bea40 100644
+--- a/arch/arm64/boot/dts/hisilicon/hi3660-hikey960.dts
++++ b/arch/arm64/boot/dts/hisilicon/hi3660-hikey960.dts
+@@ -270,6 +270,16 @@
+ 		};
+ 	};
+ 
++       fpc_interrupt {
++               status = "ok";
++               compatible = "fpc,fpc_irq";
++               fpc,gpio_irq = <&gpio26 1 0>; /* PIN#24 = GPIO_209 (SOC) = GPIO297 (Linux) */
++               fpc,gpio_rst = <&gpio26 3 0>; /* PIN#26 = GPIO_211 (SOC) = GPIO299 (Linux) */
++               fpc,enable_wakeup;
++       };
++
++
++
+ 	pmic: pmic@fff34000 {
+ 		compatible = "hisilicon,hi6421v530-pmic";
+ 		reg = <0x0 0xfff34000 0x0 0x1000>;
+diff --git a/arch/arm64/configs/hikey960_defconfig b/arch/arm64/configs/hikey960_defconfig
+index 46f5d84..4d16878 100644
+--- a/arch/arm64/configs/hikey960_defconfig
++++ b/arch/arm64/configs/hikey960_defconfig
+@@ -308,6 +308,7 @@ CONFIG_INPUT_KEYCHORD=y
+ CONFIG_INPUT_UINPUT=y
+ CONFIG_INPUT_GPIO=y
+ CONFIG_INPUT_HISI_POWERKEY=y
++CONFIG_INPUT_FPC1020_IRQ=y
+ # CONFIG_SERIO_SERPORT is not set
+ CONFIG_SERIO_AMBAKMI=y
+ # CONFIG_VT is not set
